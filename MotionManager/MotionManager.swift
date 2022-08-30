@@ -33,6 +33,7 @@ final class MotionManager: ObservableObject{
     var y = 0.00
     var z = 0.00
     
+    var sensorJudge = true
     
     // トレーニング時のボタンを透明にする
     @Published var buttonOpacity = true
@@ -81,14 +82,14 @@ final class MotionManager: ObservableObject{
                 self.timer?.invalidate()
                 self.buttonOpacity.toggle()
                 // TODO: 複数対応できるように変更
-                self.plank()
+                self.abs()
             }
         }
     }
     
-    // プランク
-    func plank() {
-        speakTimes(x: 1)
+    // 腹筋
+    func abs() {
+        speakTimes(sensorJudge: sensorJudge)
         speeche(text: "スタート")
         startQueuedUpdates()
         
@@ -97,32 +98,27 @@ final class MotionManager: ObservableObject{
     
     // トレーニング（制限時間式）
     func trainingTime() {
-        var x = 1
         var plankTime = 60.0
         trainingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             self.systemImage = self.trainingSucess ? "circle":"xmark"
             self.backColor = self.trainingSucess ? Color.white : Color.red
             // 複数対応できるように対応する
-            switch(x){
-            case 1:
+            switch(self.sensorJudge){
+            case true:
                 if self.x >= 0.97 {
                     self.trainingSucess = true
-                    x = 2
                 } else {
                     self.trainingSucess = false
                 }
                 
-            case 2:
+            case false:
                 if self.x <= 0.02 {
                     self.trainingSucess = true
-                    x = 1
+                    
                 } else {
                     self.trainingSucess = false
                 }
-            default:
-                break;
             }
-            
             plankTime -= 0.1
         }
         
@@ -144,74 +140,60 @@ final class MotionManager: ObservableObject{
     }
     
     // 音声作動範囲
-    func speakTimes(x: Int) {
+    func speakTimes(sensorJudge: Bool) {
         
         speakTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             
-            switch(x){
-            case 1:
+            // センサーの範囲に達したら次の範囲に切り替える
+            switch(sensorJudge){
+            case true:
                 if self.x <= 0.97 {
                     
                     // TODO: 複数対応できるようにadviceとsucessの部分を配列で読ませる
-                    self.adviceSensor(advice: "", sucess: "体を起こしましょう", x: x)
-                   
+                    self.adviceSensor(sucess: "体を起こしましょう", sensorJudge: sensorJudge)
+                    
                 }
-            case 2:
+            case false:
                 if self.x >= 0.02 {
-                    
-                    
                     // TODO: 複数対応できるようにadviceとsucessの部分を配列で読ませる
-                    self.adviceSensor(advice: "", sucess: "体を倒しましょう", x: x)
-                   
+                    self.adviceSensor(sucess: "体を倒しましょう", sensorJudge: sensorJudge)
                 }
-            default:
-                break;
+                
             }
-        
         }
     }
-    
     // 音声指導
-    func adviceSensor(advice: String, sucess: String, x: Int) {
+    func adviceSensor(sucess: String, sensorJudge: Bool) {
         self.speakTimer?.invalidate()
-        self.speeche(text: advice)
         self.stopSpeacTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             // 複数の値に対応できるようにする
-            switch(x){
-            case 1:
-                print("ga")
-                var x = 1
+            switch(sensorJudge){
+            case true:
                 if self.x >= 0.97 {
-                    // 現在音声が動作中か
                     if self.speechSynthesizer.isSpeaking {
                         self.speechSynthesizer.pauseSpeaking(at: .word)
                     }
                     self.speeche(text: sucess)
-                    x = 2
+                    self.sensorJudge = false
                 }
                 if !self.speechSynthesizer.isSpeaking {
                     self.stopSpeacTimer?.invalidate()
-                    self.speakTimes(x: x)
+                    self.speakTimes(sensorJudge: self.sensorJudge)
                     
                 }
-            case 2:
-                print("yeah")
-                var x = 2
+            case false:
                 if self.x <= 0.02 {
                     // 現在音声が動作中か
                     if self.speechSynthesizer.isSpeaking {
                         self.speechSynthesizer.pauseSpeaking(at: .word)
                     }
                     self.speeche(text: sucess)
-                    x = 1
+                    self.sensorJudge = true
                 }
                 if !self.speechSynthesizer.isSpeaking {
                     self.stopSpeacTimer?.invalidate()
-                    self.speakTimes(x: x)
-                    
+                    self.speakTimes(sensorJudge: self.sensorJudge)
                 }
-            default:
-                break;
             }
         }
     }
@@ -229,7 +211,4 @@ final class MotionManager: ObservableObject{
         speechSynthesizer.speak(utterance)
     }
 }
-
-
-
 
